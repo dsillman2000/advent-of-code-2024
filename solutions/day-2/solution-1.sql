@@ -22,7 +22,8 @@ linked_levels as (
     select
         report_number,
         level,
-        level - lag(level) over (partition by report_number order by level_idx) as diff
+        level - lag(level)
+            over (partition by report_number order by level_idx) as diff
     from flattened_lines
 ),
 

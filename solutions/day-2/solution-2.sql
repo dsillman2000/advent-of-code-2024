@@ -20,7 +20,9 @@ flattened_lines as (
 
 holdout_indices as (
     select i as level_idx
-    from generate_series(1, (select max(level_idx) from flattened_lines)) as i
+    from generate_series(
+        1, (select max(level_idx) from flattened_lines)
+    ) as i
 ),
 
 linked_levels_with_holdouts as (
@@ -30,7 +32,8 @@ linked_levels_with_holdouts as (
         level,
         level_idx,
         null as holdout_idx,
-        level - lag(level) over (partition by report_number order by level_idx) as diff
+        level - lag(level)
+            over (partition by report_number order by level_idx) as diff
     from flattened_lines
     union all
     -- Compute differences after holding out each and every value
@@ -39,7 +42,11 @@ linked_levels_with_holdouts as (
         flat.level,
         flat.level_idx,
         hold.level_idx as holdout_idx,
-        flat.level - lag(flat.level) over (partition by flat.report_number, hold.level_idx order by flat.level_idx) as diff
+        flat.level - lag(flat.level)
+            over (
+                partition by flat.report_number, hold.level_idx 
+                order by flat.level_idx
+            ) as diff
     from flattened_lines as flat
     cross join holdout_indices as hold
     where flat.level_idx != hold.level_idx
