@@ -11,7 +11,7 @@ left_col as (
 
 left_ranked as (
     select
-        num :: int as left_num_as_int,
+        num,
         row_number() over (order by num) as rank
     from left_col
 ),
@@ -25,14 +25,14 @@ right_col as (
 
 right_ranked as (
     select
-        num :: int as right_num_as_int,
+        num,
         row_number() over (order by num) as rank
     from right_col
 ),
 
 ranked_differences as (
     select
-        abs(left_ranked.left_num_as_int - right_ranked.right_num_as_int) as diff
+        abs(left_ranked.num - right_ranked.num) as diff
     from left_ranked
     join right_ranked
     on left_ranked.rank = right_ranked.rank
