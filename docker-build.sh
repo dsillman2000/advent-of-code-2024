@@ -64,4 +64,5 @@ for day in $days; do
 
 done
 
+echo "Done. Stopping container..."
 docker stop advent
