@@ -1,5 +1,5 @@
 # Basic Postgresql setup
-FROM postgres:12
+FROM postgres:14
 ENV POSTGRES_USER=advent
 ENV POSTGRES_PASSWORD=advent
 ENV POSTGRES_DB=advent

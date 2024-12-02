@@ -54,7 +54,7 @@ for day in $days; do
     solution_i=1
 
     for solution in $solutions; do
-        echo "Part $sql_i" 
+        echo "Part $solution_i" 
         docker exec -it advent bash /solutions/exec.sh /solutions/day-$day/solution-$solution_i.sql
         sleep 0.5
         docker exec -it advent bash /solutions/read.sh day$day.solution_$solution_i
