@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "advent-of-code-2024"
+package-mode = false
+version = "0.1.0"
+description = ""
+authors = ["David Sillman <david.sillman@intusurg.com>"]
+readme = "README.md"
+packages = [{ include = "aoc_utils", from = "." }]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+beautifulsoup4 = "^4.12.3"
+fire = "^0.7.0"
+markdownify = "^0.14.1"
+
+
+[tool.poetry.scripts]
+download = "aoc_utils.download:main"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
