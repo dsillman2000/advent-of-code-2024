@@ -9,18 +9,18 @@ left_col as (
     order by num
 ),
 
-left_ranked as (
-    select
-        num,
-        row_number() over (order by num) as rank
-    from left_col
-),
-
 right_col as (
     select
         split_part(line_content, ' ', 4) :: int as num
     from day1.input
     order by num
+),
+
+left_ranked as (
+    select
+        num,
+        row_number() over (order by num) as rank
+    from left_col
 ),
 
 right_ranked as (
