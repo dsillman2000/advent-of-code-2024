@@ -56,6 +56,16 @@ To skip rebuilding the docker image, you can supply the `--no-build` flag:
 bash docker-build.sh --no-build --day 1
 ```
 
+## Interactive SQL
+
+To run an interactive `psql` session in the Docker container after running the setup scripts, run:
+
+```bash
+bash docker-interactive.sh
+```
+
+This script also supports the "--no-build" flag to skip rebuilding the Docker image.
+
 ## Acknowledgements
 
 Author:
