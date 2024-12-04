@@ -1,0 +1,6 @@
+create schema day{{ num }};
+create table day{{ num }}.input (
+    line_content text
+);
+copy day{{ num }}.input (line_content)
+from '/inputs/day-{{ num }}.txt';

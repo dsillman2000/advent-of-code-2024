@@ -6,5 +6,5 @@ ENV POSTGRES_DB=advent
 ENV PSOTGRES_HOST_AUTH_METHOD=trust
 
 COPY ./inputs /inputs
-COPY ./setups /docker-entrypoint-initdb.d
+COPY ./setups/days /docker-entrypoint-initdb.d
 COPY ./solutions /solutions
