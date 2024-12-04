@@ -53,10 +53,11 @@ for day in $days; do
     solution_i=1
 
     for solution in $solutions; do
+        solution_file="/solutions/day-$day/solution-$solution_i.sql"
         echo "Part $solution_i" 
-        docker exec advent bash /solutions/exec.sh /solutions/day-$day/solution-$solution_i.sql
+        docker exec advent bash /solutions/create-solution-table.sh $solution_file
         sleep 0.5
-        docker exec advent bash /solutions/read.sh day$day.solution_$solution_i
+        docker exec advent bash /solutions/select-solution-table.sh $solution_file
         sleep 0.5
         ((solution_i++))
     done

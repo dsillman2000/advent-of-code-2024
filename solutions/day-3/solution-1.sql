@@ -1,5 +1,3 @@
-create table day3.solution_1 as
-
 with
 
 mul_matches as (

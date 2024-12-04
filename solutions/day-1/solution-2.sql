@@ -1,5 +1,3 @@
-create table day1.solution_2 as
-
 with
 
 left_col as (

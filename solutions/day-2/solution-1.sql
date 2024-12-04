@@ -1,5 +1,3 @@
-create table day2.solution_1 as
-
 with 
 
 numbered_lines as (
