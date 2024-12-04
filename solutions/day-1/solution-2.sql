@@ -39,7 +39,7 @@ left_joint as (
     from
         left_counts
     left join right_counts
-    on left_counts.num = right_counts.num
+    using (num)
 )
 
 select sum(similarity_score) as answer

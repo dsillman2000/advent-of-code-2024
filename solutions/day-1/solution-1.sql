@@ -33,7 +33,7 @@ ranked_differences as (
         abs(left_ranked.num - right_ranked.num) as diff
     from left_ranked
     join right_ranked
-    on left_ranked.rank = right_ranked.rank
+    using (rank)
 )
 
 select sum(diff) as answer
