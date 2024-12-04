@@ -44,7 +44,7 @@ echo "Running container..."
 docker run --detach --name advent --rm adventofcode2024:latest
 
 echo "Done. Cooling off..."
-sleep 1
+sleep 3
 
 echo "Done. Running solutions..."
 for day in $days; do

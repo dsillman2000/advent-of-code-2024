@@ -1,6 +1,6 @@
-CREATE SCHEMA day1;
-CREATE TABLE day1.input (
-    line_content TEXT
+create schema day1;
+create table day1.input (
+    line_content text
 );
-COPY day1.input (line_content)
-FROM '/inputs/day-1.txt';
+copy day1.input (line_content)
+from '/inputs/day-1.txt';
