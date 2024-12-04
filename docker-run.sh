@@ -28,7 +28,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ $days = '*' ]]; then
-    days="1 2"
+    days=$(ls -1 ./solutions | grep day- | cut -d'-' -f2 | sort -n |  tr '\n' ' ')
 fi
 
 echo "Selected days: $days"
