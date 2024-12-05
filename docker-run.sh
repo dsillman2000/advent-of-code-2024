@@ -40,7 +40,7 @@ else
 fi
 
 echo "Running container..."
-docker run --detach --name advent --rm adventofcode2024:latest
+docker run -d -p 5432:5432 --name advent --rm adventofcode2024:latest
 
 echo "Done. Cooling off..."
 sleep 3

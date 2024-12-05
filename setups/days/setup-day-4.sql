@@ -3,4 +3,4 @@ create table day4.input (
     line_content text
 );
 copy day4.input (line_content)
-from '/inputs/day-4.txt';
+from '/advent/inputs/day-4.txt';

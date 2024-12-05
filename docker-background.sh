@@ -6,6 +6,13 @@ while [[ $# -gt 0 ]]; do
             shift
             nobuild=1
             ;;
+        --kill)
+            shift
+            echo "Killing 'advent' container..."
+            docker stop advent
+            echo "Done."
+            exit 0
+            ;;
         *)
             shift
             ;;
@@ -25,8 +32,9 @@ echo "Done. Cooling off..."
 
 sleep 3
 
-echo "Done. Running psql..."
-docker exec -it advent bash -c "PGPASSWORD=advent psql -U advent -w advent"
+echo "Done. 'advent' container is running."
 
-echo "Done. Cleaning up..."
-docker stop advent
+docker_ip=$(docker inspect \
+  -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' advent)
+
+echo "Docker IP address: $docker_ip"
