@@ -40,7 +40,7 @@ else
 fi
 
 echo "Running container..."
-docker run --detach --name advent --rm adventofcode2024:latest
+docker run -d -p 5432:5432 --name advent --rm adventofcode2024:latest
 
 echo "Done. Cooling off..."
 sleep 3
@@ -53,11 +53,11 @@ for day in $days; do
     solution_i=1
 
     for solution in $solutions; do
-        solution_file="/solutions/day-$day/solution-$solution_i.sql"
+        solution_file="/advent/solutions/day-$day/solution-$solution_i.sql"
         echo "Part $solution_i" 
-        docker exec advent bash /solutions/create-solution-table.sh $solution_file
+        docker exec advent bash /advent/solutions/create-solution-table.sh $solution_file
         sleep 0.5
-        docker exec advent bash /solutions/select-solution-table.sh $solution_file
+        docker exec advent bash /advent/solutions/select-solution-table.sh $solution_file
         sleep 0.5
         ((solution_i++))
     done
