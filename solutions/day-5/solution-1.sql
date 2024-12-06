@@ -23,108 +23,89 @@ ordering_rules as (
     where line_category = 'ordering_rule'
 ),
 
+ordering_patterns as (
+    select
+        rule_id,
+        '%"' || first_page || '"%' as first_pattern,
+        '%"' || second_page || '"%' as second_pattern,
+        '%"' 
+        || first_page || '"%"'
+        || second_page || '"%' as both_pattern
+    from ordering_rules
+),
+
 page_updates as (
     select
         line_number as update_id,
-        unnest(
-            string_to_array(line_content, ',')
-        ) as page_num
+        '"' 
+        || replace(line_content, ',', '","')
+        || '"' as pages
     from categorized_lines
     where line_category = 'page_updates'
 ),
 
-indexed_page_updates as (
+updates_with_rules as (
+    select
+        page.update_id,
+        page.pages,
+        rule.rule_id,
+        (
+            page.pages like rule.first_pattern
+            and page.pages like rule.second_pattern
+            and page.pages like rule.both_pattern
+        ) or not (
+            page.pages like rule.first_pattern
+            and page.pages like rule.second_pattern
+            and page.pages not like rule.both_pattern
+        ) as is_satisfied
+    from page_updates as page
+    cross join ordering_patterns as rule
+),
+
+satisfactory_updates as (
+    select
+        update_id,
+        replace(pages, '"', ' ') as stripped_pages
+    from updates_with_rules
+    group by update_id, pages
+    having bool_and(is_satisfied)
+    order by update_id
+),
+
+flattened_pages as (
+    select
+        update_id,
+        unnest(
+            string_to_array(stripped_pages, ',')
+        ) as page_num
+    from satisfactory_updates
+),
+
+indexed_flat_pages as (
     select
         update_id,
         row_number() over (partition by update_id) as page_index,
         page_num
-    from page_updates
+    from flattened_pages
 ),
 
-ordered_pairs_with_relevance as (
-    select
-        page_update.update_id,
-        page_update.page_index,
-        page_update.page_num,
-        rule.rule_id,
-        rule.first_page,
-        rule.second_page,
-        count(*) 
-            over (partition by update_id, rule_id) = 2 
-            as is_relevant
-    from indexed_page_updates as page_update
-    join ordering_rules as rule
-        on page_update.page_num = rule.first_page
-        or page_update.page_num = rule.second_page
-),
-
-rules_pairs_in_updates as (
+index_flat_pages_with_max as (
     select
         update_id,
-        rule_id,
-        first_page as rule_first_page,
-        second_page as rule_second_page,
-        first_value(page_num) 
-            over (
-                partition by update_id, rule_id
-                order by page_index
-            ) as update_first_page,
-        last_value(page_num) 
-            over (
-                partition by update_id, rule_id
-                order by page_index
-            ) as update_second_page
-    from ordered_pairs_with_relevance
-    where is_relevant
-    order by update_id, rule_id
+        page_index,
+        page_num,
+        max(page_index) over (partition by update_id) as max_page_index
+    from indexed_flat_pages
 ),
 
-rules_in_updates_with_correctness as (
+midpoint_pages as (
     select
         update_id,
-        rule_id,
-        rule_first_page,
-        rule_second_page,
-        update_first_page,
-        update_second_page,
-        (
-            rule_first_page = update_first_page and
-            rule_second_page = update_second_page
-        ) as is_correct
-    from rules_pairs_in_updates
-    -- knock out irrelevant member of pair
-    where update_first_page != update_second_page
-),
-
-completely_correct_update_ids as (
-    select
-        update_id
-    from rules_in_updates_with_correctness
-    group by update_id
-    having bool_and(is_correct)
-),
-
-completely_correct_updates_pages as (
-    select
-        idx_updates.update_id,
-        idx_updates.page_index,
-        idx_updates.page_num,
-        max(idx_updates.page_index) 
-            over (partition by idx_updates.update_id)
-            as max_page_index
-    from indexed_page_updates as idx_updates
-    inner join completely_correct_update_ids
-        using (update_id)
-),
-
-completely_correct_update_midpoints as (
-    select
-        update_id,
-        page_num as midpoint_page
-    from completely_correct_updates_pages
+        page_index,
+        page_num
+    from index_flat_pages_with_max
     where page_index = (max_page_index + 1) / 2
 )
 
-select sum(midpoint_page :: int) as answer
-from completely_correct_update_midpoints
-;
+select sum(page_num::int) as answer
+from midpoint_pages;
