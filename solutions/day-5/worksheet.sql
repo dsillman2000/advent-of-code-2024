@@ -1,37 +1,50 @@
-create or replace function make_satisfy_rule(dummy text, pages text, rule_pattern text, flag boolean)
+create or replace function satisfies_rule(acc boolean, pages text, rule_pattern text)
+returns boolean
+language sql as $$
+with args as (
+    select
+        $2 as pages,
+        $3 as both_pattern,
+        $1 as acc
+),
+page_components as (
+    select
+        acc,
+        pages,
+        both_pattern,
+        '%' || split_part(both_pattern, '%', 3) || 
+        '%' || split_part(both_pattern, '%', 2) || '%' 
+            as anti_pattern
+    from args
+)
+select
+    case
+        when pages like both_pattern then acc
+        when pages like anti_pattern then false
+        else acc
+    end
+from page_components
+$$;
+create or replace function make_satisfy_rule(dummy text, pages text, rule_pattern text)
 returns text
 language sql as $$
 with args as (
     select
         coalesce($1, $2) as pages,
-        $3 as both_pattern,
-        $4 as is_satisfied
+        $3 as both_pattern
 ),
 page_components as (
     select
         pages,
         split_part(both_pattern, '%', 2) as first_page,
         split_part(both_pattern, '%', 3) as second_page,
-        both_pattern,
-        is_satisfied
+        both_pattern
     from args
-),
-components as (
-    select
-        pages,
-        first_page,
-        second_page,
-        '%' || first_page || '%' as first_pattern,
-        '%' || second_page || '%' as second_pattern,
-        both_pattern,
-        '%' || second_page || '%' || first_page || '%' as anti_pattern,
-        is_satisfied
-    from page_components
 )
 select
     case
-        when pages like both_pattern then pages
-        when pages like anti_pattern then (
+        when satisfies_rule(true, pages, both_pattern) then pages
+        else (
             split_part(pages, second_page, 1)
             || first_page
             || split_part(
@@ -41,15 +54,45 @@ select
             || second_page
             || split_part(pages, first_page, 2)
         )
-        else pages
     end
-from components
+from page_components
 $$;
-create or replace aggregate make_satisfy_rules(text, text, boolean) (
-    sfunc = make_satisfy_rule,
-    stype = text
+create or replace aggregate satisfies_rules(text, text) (
+    sfunc = satisfies_rule,
+    stype = boolean,
+    initcond = true,
+    paralell = restricted
 );
-with
+create or replace aggregate make_satisfy_rules(text, text) (
+    sfunc = make_satisfy_rule,
+    stype = text,
+    paralell = restricted
+);
+create or replace function satisfies_rules_array(pages text, rules text[])
+returns boolean
+language sql as $$
+with flattened_args as (
+    select
+        $1 as pages,
+        unnest($2) as rule_pattern
+)
+select
+    satisfies_rules(pages, rule_pattern)
+from flattened_args
+$$;
+create or replace function make_satisfy_rules_array(pages text, rules text[])
+returns text
+language sql as $$
+with flattened_args as (
+    select
+        $1 as pages,
+        unnest($2) as rule_pattern
+)
+select
+    make_satisfy_rules(pages, rule_pattern)
+from flattened_args
+$$;
+with recursive
 
 categorized_lines as (
     select
@@ -85,6 +128,12 @@ ordering_patterns as (
     from ordering_rules
 ),
 
+ordering_array as (
+    select
+        array_agg(both_pattern) as rules
+    from ordering_patterns
+),
+
 page_updates as (
     select
         line_number as update_id,
@@ -95,7 +144,7 @@ page_updates as (
     where line_category = 'page_updates'
 ),
 
-updates_with_rules_1 as (
+original_updates_with_rules as (
     select
         page.update_id,
         page.pages,
@@ -121,38 +170,68 @@ original_unsatisfactory_updates as (
         update_id,
         pages,
         rule_id,
-        is_satisfied,
-        both_pattern
-    from updates_with_rules_1
-    where not is_satisfied
+        both_pattern,
+        bool_or(not is_satisfied) over (partition by update_id) as is_unsatisfactory
+    from original_updates_with_rules
     order by update_id, rule_id
 ),
 
-corrected_updates as (
+original_corrected_updates as (
     select
         update_id,
-        make_satisfy_rules(pages, both_pattern, is_satisfied)
+        make_satisfy_rules(pages, both_pattern)
             as corrected_pages
     from original_unsatisfactory_updates
+    where is_unsatisfactory
     group by update_id
     order by update_id
 ),
 
-stripped_corrected_updates as (
+corrected_updates as (
     select
+        orig.update_id,
+        make_satisfy_rules_array(
+            orig.corrected_pages,
+            rulearr.rules
+        ) as corrected_pages,
+        1 as revision
+    from original_corrected_updates as orig
+    cross join ordering_array as rulearr
+
+    union all
+
+    select
+        corr.update_id,
+        make_satisfy_rules_array(
+            corr.corrected_pages,
+            rulearr.rules
+        ) as corrected_pages,
+        corr.revision + 1 as revision
+    from corrected_updates as corr
+    cross join ordering_array as rulearr
+    where not satisfies_rules_array(
+        make_satisfy_rules_array(
+            corr.corrected_pages,
+            rulearr.rules
+        ),
+        rulearr.rules
+    )
+),
+
+stripped_corrected_updates as (
+    select distinct on (update_id)
         update_id,
+        revision,
         replace(corrected_pages, '"', ' ') as stripped_pages
     from corrected_updates
+    order by update_id, revision desc
 ),
 
 flattened_pages as (
     select
         update_id,
         unnest(
-            string_to_array(
-                stripped_pages,
-                ','
-            )
+            string_to_array(stripped_pages, ',')
         ) as page_num
     from stripped_corrected_updates
 ),
@@ -163,14 +242,15 @@ indexed_flat_pages as (
         row_number() over (partition by update_id) as page_index,
         page_num
     from flattened_pages
+    order by update_id, page_index
 ),
 
 index_flat_pages_with_max as (
     select
         update_id,
         page_index,
-        page_num,
-        max(page_index) over (partition by update_id) as max_page_index
+        page_num::int,
+        max(page_index::int) over (partition by update_id) as max_page_index
     from indexed_flat_pages
 ),
 
