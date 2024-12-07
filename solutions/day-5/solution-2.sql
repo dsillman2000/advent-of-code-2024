@@ -1,3 +1,4 @@
+-- no-auto-create
 create or replace function satisfies_rule(acc boolean, pages text, rule_pattern text)
 returns boolean
 language sql as $$
@@ -61,12 +62,12 @@ create or replace aggregate satisfies_rules(text, text) (
     sfunc = satisfies_rule,
     stype = boolean,
     initcond = true,
-    paralell = restricted
+    parallel = restricted
 );
 create or replace aggregate make_satisfy_rules(text, text) (
     sfunc = make_satisfy_rule,
     stype = text,
-    paralell = restricted
+    parallel = restricted
 );
 create or replace function satisfies_rules_array(pages text, rules text[])
 returns boolean
@@ -92,6 +93,8 @@ select
     make_satisfy_rules(pages, rule_pattern)
 from flattened_args
 $$;
+create table day5.solution_2 as
+
 with recursive
 
 categorized_lines as (
@@ -198,7 +201,7 @@ corrected_updates as (
     from original_corrected_updates as orig
     cross join ordering_array as rulearr
 
-    union all
+    union
 
     select
         corr.update_id,
@@ -206,16 +209,14 @@ corrected_updates as (
             corr.corrected_pages,
             rulearr.rules
         ) as corrected_pages,
-        corr.revision + 1 as revision
+        corr.revision + (
+            not satisfies_rules_array(
+                corr.corrected_pages,
+                rulearr.rules
+            )
+        ) :: int as revision
     from corrected_updates as corr
     cross join ordering_array as rulearr
-    where not satisfies_rules_array(
-        make_satisfy_rules_array(
-            corr.corrected_pages,
-            rulearr.rules
-        ),
-        rulearr.rules
-    )
 ),
 
 stripped_corrected_updates as (
